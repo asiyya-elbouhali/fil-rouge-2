@@ -1,0 +1,53 @@
+name: lms
+services:
+  lms-db:
+    image: 'postgres:latest'
+    container_name: lms-database
+    env_file:
+      - app.env
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - type: volume
+        source: postgres-db
+        target: /var/lib/postgresql/data
+    networks:
+      - lms
+
+  app:
+    container_name: lms
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - app.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      lms-db:
+        condition: service_healthy
+      lms-cache:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - lms
+
+networks:
+  lms:
+    attachable: true
+    name: lms
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:0DB8::/112
+
+volumes:
+  postgres-db:
+    driver: local
